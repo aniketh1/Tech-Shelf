@@ -1,43 +1,16 @@
+'use client';
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, TrendingUp, Users, Clock } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { prisma } from '@/lib/prisma';
-import { currentUser } from '@clerk/nextjs/server';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useComments } from '@/hooks/useComments';
 
-async function CommentsAnalytics() {
-  const user = await currentUser();
-  if (!user) return null;
-
-  const dbUser = await prisma.user.findUnique({
-    where: { clerkUserId: user.id },
-    include: {
-      articles: {
-        include: {
-          comments: true
-        }
-      }
-    }
-  });
-
-  if (!dbUser) return null;
-
-  // Calculate total comments across all articles
-  const totalComments = dbUser.articles.reduce((sum, article) => sum + (article.comments?.length || 0), 0);
-  
-  // Calculate average comments per article
-  const avgCommentsPerArticle = dbUser.articles.length > 0 
-    ? (totalComments / dbUser.articles.length).toFixed(1)
-    : 0;
-
-  // Get recent comments
-  const recentComments = dbUser.articles
-    .flatMap(article => article.comments || [])
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5);
+export default function CommentsAnalytics() {
+  const commentsData = useComments();
 
   return (
     <main className='flex-1 p-4 md:p-8 pt-16 md:pt-8'>
@@ -56,7 +29,7 @@ async function CommentsAnalytics() {
             <MessageCircle className='h-4 w-4 text-muted-foreground'/>
           </CardHeader>
           <CardContent>
-            <div className='text-2xl font-bold'>{totalComments}</div>
+            <div className='text-2xl font-bold'>{commentsData.totalComments}</div>
             <p className='text-sm text-muted-foreground'>Across all articles</p>
           </CardContent>
         </Card>
@@ -67,7 +40,7 @@ async function CommentsAnalytics() {
             <TrendingUp className='h-4 w-4 text-muted-foreground'/>
           </CardHeader>
           <CardContent>
-            <div className='text-2xl font-bold'>{avgCommentsPerArticle}</div>
+            <div className='text-2xl font-bold'>{commentsData.avgCommentsPerArticle.toFixed(1)}</div>
             <p className='text-sm text-muted-foreground'>Per article</p>
           </CardContent>
         </Card>
@@ -78,8 +51,8 @@ async function CommentsAnalytics() {
             <Users className='h-4 w-4 text-muted-foreground'/>
           </CardHeader>
           <CardContent>
-            <div className='text-2xl font-bold'>{recentComments.length}</div>
-            <p className='text-sm text-muted-foreground'>Recent commenters</p>
+            <div className='text-2xl font-bold'>{commentsData.activeUsers}</div>
+            <p className='text-sm text-muted-foreground'>Last 24 hours</p>
           </CardContent>
         </Card>
 
@@ -115,19 +88,19 @@ async function CommentsAnalytics() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {recentComments.map((comment, index) => (
-                <TableRow key={index}>
+              {commentsData.recentComments.map((comment) => (
+                <TableRow key={comment.id}>
                   <TableCell>
                     <div className='flex items-center gap-2'>
                       <Avatar className='h-8 w-8'>
-                        <AvatarImage src={comment.user?.imageUrl} />
-                        <AvatarFallback>UC</AvatarFallback>
+                        <AvatarImage src={comment.user.imageUrl} />
+                        <AvatarFallback>{comment.user.name[0]}</AvatarFallback>
                       </Avatar>
-                      <span>{comment.user?.name || 'Anonymous'}</span>
+                      <span>{comment.user.name}</span>
                     </div>
                   </TableCell>
                   <TableCell className='max-w-[200px] truncate'>
-                    {comment.article?.title}
+                    {comment.article.title}
                   </TableCell>
                   <TableCell className='max-w-[300px] truncate'>
                     {comment.content}
@@ -149,5 +122,3 @@ async function CommentsAnalytics() {
     </main>
   );
 }
-
-export default CommentsAnalytics;

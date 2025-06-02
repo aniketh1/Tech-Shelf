@@ -4,8 +4,10 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theam-provider";
 import { Toaster } from '@/components/ui/toaster';
 import { ClerkProvider } from "@clerk/nextjs"
+import 'react-quill-new/dist/quill.snow.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: {
     default: "Tech Shelf - Your Gateway to Technology Insights",
     template: "%s | Tech Shelf"

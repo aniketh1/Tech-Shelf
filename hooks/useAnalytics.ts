@@ -28,13 +28,9 @@ type AnalyticsData = {
 
 export const useAnalytics = () => {
   const [socket, setSocket] = useState<Socket | null>(null)
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
-    totalViews: 0,
-    avgEngagementRate: 0,
-    activeReaders: 0,
-    topArticles: [],
-    monthlyViews: []
-  })
+  const [data, setData] = useState<AnalyticsData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
     const socketInstance = io(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000', {
@@ -44,13 +40,65 @@ export const useAnalytics = () => {
     setSocket(socketInstance)
 
     socketInstance.on('analyticsUpdate', (data: ArticleAnalytics) => {
-      setAnalyticsData(prev => ({
-        ...prev,
-        totalViews: prev.totalViews + 1,
-        avgEngagementRate: data.engagementRate,
-        activeReaders: data.uniqueVisitors
-      }))
+      setData(prev => {
+        if (!prev) return null
+        
+        const newTotalViews = prev.totalViews + 1
+        
+        const newAvgEngagementRate = ((prev.avgEngagementRate * prev.topArticles.length) + data.engagementRate) / 
+          (prev.topArticles.length + 1)
+
+        const updatedTopArticles = [...prev.topArticles]
+        const articleIndex = updatedTopArticles.findIndex(a => a.title === data.articleId)
+        
+        if (articleIndex !== -1) {
+          updatedTopArticles[articleIndex] = {
+            ...updatedTopArticles[articleIndex],
+            views: data.views,
+            engagement: `${data.engagementRate.toFixed(1)}%`
+          }
+        }
+
+        updatedTopArticles.sort((a, b) => b.views - a.views)
+
+        const currentMonth = new Date().toLocaleString('default', { month: 'short' })
+        const updatedMonthlyViews = [...prev.monthlyViews]
+        const monthIndex = updatedMonthlyViews.findIndex(m => m.month === currentMonth)
+        
+        if (monthIndex !== -1) {
+          updatedMonthlyViews[monthIndex].views += 1
+        } else {
+          updatedMonthlyViews.push({ month: currentMonth, views: 1 })
+        }
+
+        return {
+          ...prev,
+          totalViews: newTotalViews,
+          avgEngagementRate: newAvgEngagementRate,
+          activeReaders: data.uniqueVisitors,
+          topArticles: updatedTopArticles.slice(0, 5),
+          monthlyViews: updatedMonthlyViews
+        }
+      })
     })
+
+    const fetchData = async () => {
+      try {
+        setIsLoading(true)
+        const response = await fetch('/api/analytics')
+        if (!response.ok) {
+          throw new Error('Failed to fetch analytics data')
+        }
+        const analyticsData = await response.json()
+        setData(analyticsData)
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error('An error occurred'))
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
 
     return () => {
       socketInstance.disconnect()
@@ -64,7 +112,9 @@ export const useAnalytics = () => {
   }
 
   return {
-    analyticsData,
+    data,
+    isLoading,
+    error,
     trackArticleView
   }
 }

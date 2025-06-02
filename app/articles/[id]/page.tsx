@@ -11,7 +11,7 @@ export async function generateMetadata(
   { params }: Props,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  const id = params.id;
+  const { id } = await params;
   const article = await prisma.articles.findUnique({
     where: { id },
     include: { author: true }
@@ -27,11 +27,11 @@ export async function generateMetadata(
 
   return {
     title: article.title,
-    description: article.excerpt || article.content.substring(0, 160),
+    description: article.content.substring(0, 160),
     authors: [{ name: article.author.name }],
     openGraph: {
       title: article.title,
-      description: article.excerpt || article.content.substring(0, 160),
+      description: article.content.substring(0, 160),
       type: 'article',
       publishedTime: article.createdAt.toISOString(),
       authors: [article.author.name],
@@ -42,7 +42,7 @@ export async function generateMetadata(
     twitter: {
       card: 'summary_large_image',
       title: article.title,
-      description: article.excerpt || article.content.substring(0, 160),
+      description: article.content.substring(0, 160),
       images: article.featuredImage ? [article.featuredImage] : []
     }
   };
@@ -50,7 +50,8 @@ export async function generateMetadata(
 
 async function trackArticleView(articleId: string) {
   try {
-    await fetch(`/api/articles/${articleId}/analytics`, {
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    await fetch(`${baseUrl}/api/articles/${articleId}/analytics`, {
       method: 'POST',
     });
   } catch (error) {
@@ -59,7 +60,6 @@ async function trackArticleView(articleId: string) {
 }
 
 async function ArticlePage({ params }: { params: { id: string } }) {
-  // Await params before using its properties
   const { id } = await params;
   const article = await prisma.articles.findUnique({
     where: {
@@ -126,7 +126,21 @@ async function ArticlePage({ params }: { params: { id: string } }) {
       </div>
 
       <div 
-        className="prose prose-lg dark:prose-invert max-w-none"
+        className="mt-8 space-y-6 text-gray-600 dark:text-gray-300
+          [&_h1]:text-4xl [&_h1]:font-bold [&_h1]:mb-4 [&_h1]:text-gray-900 [&_h1]:dark:text-gray-100
+          [&_h2]:text-3xl [&_h2]:font-bold [&_h2]:mb-3 [&_h2]:text-gray-900 [&_h2]:dark:text-gray-100
+          [&_h3]:text-2xl [&_h3]:font-bold [&_h3]:mb-2 [&_h3]:text-gray-900 [&_h3]:dark:text-gray-100
+          [&_p]:mb-4
+          [&_strong]:font-bold [&_strong]:text-gray-900 [&_strong]:dark:text-gray-100
+          [&_em]:italic
+          [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:mb-4
+          [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:mb-4
+          [&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-4 [&_blockquote]:dark:border-gray-600
+          [&_a]:text-blue-600 [&_a]:dark:text-blue-400 [&_a]:hover:underline
+          [&_pre]:bg-gray-100 [&_pre]:dark:bg-gray-800 [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:my-4 [&_pre]:overflow-x-auto
+          [&_code]:font-mono [&_code]:text-sm [&_code]:bg-gray-100 [&_code]:dark:bg-gray-800 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-gray-900 [&_code]:dark:text-gray-100
+          [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-gray-900 [&_pre_code]:dark:text-gray-100
+          [&_img]:rounded-lg [&_img]:my-4"
         dangerouslySetInnerHTML={{ __html: article.content }}
       />
 

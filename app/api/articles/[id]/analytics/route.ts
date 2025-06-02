@@ -6,7 +6,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     
     // Get or create analytics for the article
     const analytics = await prisma.articleAnalytics.upsert({

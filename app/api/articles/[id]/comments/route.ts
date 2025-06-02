@@ -6,19 +6,14 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const { id } = params;
+  const { id } = await params;
   try {
     const comments = await prisma.comment.findMany({
       where: {
         articleId: id,
       },
       include: {
-        author: {
-          select: {
-            name: true,
-            imageUrl: true,
-          },
-        },
+        author: true,
       },
       orderBy: {
         createdAt: 'desc',
